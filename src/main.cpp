@@ -20,11 +20,11 @@ int main()
   dprintf(STDOUT_FILENO, "b = ");
   b.dump(STDOUT_FILENO);
   dprintf(STDOUT_FILENO, "a + b = ");
-  a.add(b).dump(STDOUT_FILENO);
+  (a + b).dump(STDOUT_FILENO);
   dprintf(STDOUT_FILENO, "a - b = ");
-  a.sub(b).dump(STDOUT_FILENO);
+  (a + b).dump(STDOUT_FILENO);
   dprintf(STDOUT_FILENO, "%lg * a = ", scale);
-  a.scale(scale).dump(STDOUT_FILENO);
+  (scale * a).dump(STDOUT_FILENO);
   dprintf(STDOUT_FILENO, "a^b = %lg\n", a.angle_with(b));
 
   sf::RenderTexture render_texture;
