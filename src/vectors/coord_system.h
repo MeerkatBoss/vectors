@@ -41,12 +41,31 @@ public:
    */
   void translate(const Vec& translation);
 
+  CoordSystem& operator+=(const Vec& translation)
+  {
+    translate(translation);
+    return *this;
+  }
+
   /**
    * @brief Rotate coordinate system around its origin
    *
    * @param[in] 	 angle              Rotation angle (in radians)
    */
   void rotate(double angle);
+
+  /**
+   * @brief Scale all unit vectors by given scale factor
+   *
+   * @param[in] scale	              Scale factor
+   */
+  void scale(double scale);
+
+  CoordSystem& operator*=(double scale)
+  {
+    this->scale(scale);
+    return *this;
+  }
 
   /**
    * @brief Get original (coordinate-system-independent) coordinates of a vector
@@ -58,6 +77,11 @@ public:
    */
   Vec getOrigVector(const Vec& vector) const;
 
+  Vec operator>>(const Vec& vector) const
+  {
+    return getOrigVector(vector);
+  }
+
   /**
    * @brief Get coordinates of vector in coordinate system
    *
@@ -68,6 +92,11 @@ public:
    *           unit vectors
    */
   Vec fromOrigVector(const Vec& vector) const;
+
+  Vec operator<<(const Vec& vector) const
+  {
+    return fromOrigVector(vector);
+  }
 };
 
 #endif /* coord_system.h */

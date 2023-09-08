@@ -4,6 +4,7 @@
 #include <SFML/Graphics/PrimitiveType.hpp>
 #include <SFML/Graphics/Vertex.hpp>
 #include <SFML/System/Vector2.hpp>
+#include <asm-generic/errno-base.h>
 #include <cassert>
 #include <cerrno>
 #include <cstdio>
@@ -14,22 +15,48 @@
 
 #define EPS 1e-6
 
-Vec Vec::add(const Vec& other) const
+bool operator==(const Vec& first, const Vec& second)
+{
+  return fabs(first.m_x - second.m_x)
+      && fabs(first.m_y - second.m_y);
+}
+
+bool operator!=(const Vec& first, const Vec& second)
+{
+  return !(first == second);
+}
+
+Vec Vec::operator+(const Vec& other) const
 {
   return Vec(m_x + other.m_x,
              m_y + other.m_y);
 }
 
-Vec Vec::sub(const Vec& other) const
+Vec Vec::operator-(const Vec& other) const
 {
   return Vec(m_x - other.m_x,
              m_y - other.m_y);
 }
 
-Vec Vec::scale(double scale) const
+Vec Vec::operator*(double scale) const
 {
   return Vec(scale * m_x,
              scale * m_y);
+}
+
+Vec operator*(double scale, const Vec& vector)
+{
+  return vector * scale;
+}
+
+Vec Vec::operator/(double scale) const
+{
+  if (fabs(scale) < EPS)
+  {
+    errno = EINVAL;
+    return Vec(NAN, NAN);
+  }
+  return operator*(1.0 / scale);
 }
 
 Vec Vec::rotate(double angle) const
@@ -52,7 +79,17 @@ Vec Vec::project_on(const Vec& other) const
     return Vec(NAN, NAN);
   }
 
-  return other.scale(dot_product / other_len);
+  return other * dot_product / other_len;
+}
+
+Vec Vec::operator<<(const CoordSystem& coords) const
+{
+  return coords.getOrigVector(*this);
+}
+
+Vec Vec::operator>>(const CoordSystem& coords) const
+{
+  return coords.fromOrigVector(*this);
 }
 
 Vec Vec::getNormalized() const
@@ -63,7 +100,7 @@ Vec Vec::getNormalized() const
     return Vec(NAN, NAN);
   }
 
-  return scale(1.0/length());
+  return *this / length();
 }
 
 Vec Vec::getOrthogonal() const
@@ -105,6 +142,11 @@ double Vec::angle_with(const Vec& other) const
   return acos(cosine);
 }
 
+double Vec::operator||(const Vec& other) const
+{
+  return fabs(crossProduct(*this, other)) < EPS;
+}
+
 void Vec::dump(int fd) const
 {
   dprintf(fd, "Vec { x=%lg, y=%lg }\n", m_x, m_y);
@@ -132,21 +174,22 @@ void Vec::draw(const CoordSystem& coord_system, double width,
   const Vec orth = norm.getOrthogonal();
 
   // Get base points
-  const Vec   head_margin = norm.scale(arrow_head_length / 2);
-  const Point head_end    = coord_system.getOrigin().add(target_vector);
-  const Point head_start  = head_end.sub(head_margin);
+  // const Vec   head_margin = norm * arrow_head_length / 2;
+  const Point head_end    = coord_system.getOrigin() + target_vector;
+
+  const Point head_start  = head_end - norm * arrow_head_length / 2;
   Point       line_start  = coord_system.getOrigin();
 
   // If target vector is longer than half of arrow-head
   if (target_len > arrow_head_length / 2)
   {
     // Draw arrow line
-    const Vec line_half_width = orth.scale(width / 2);
+    // const Vec line_half_width = orth * width / 2;
 
-    const Point tail_left  = line_start.sub(line_half_width);
-    const Point tail_right = line_start.add(line_half_width);
-    const Point head_left  = head_start.sub(line_half_width);
-    const Point head_right = head_start.add(line_half_width);
+    const Point tail_left  = line_start - orth * width / 2;
+    const Point tail_right = line_start + orth * width / 2;
+    const Point head_left  = head_start - orth * width / 2;
+    const Point head_right = head_start + orth * width / 2;
 
     const sf::Vertex vertex_array[] = {
       sf::Vertex(sf::Vector2f( tail_left.m_x,  tail_left.m_y), sf::Color::Black),
@@ -159,12 +202,12 @@ void Vec::draw(const CoordSystem& coord_system, double width,
   }
 
   // Draw arrow head
-  const Vec head_half_width = orth.scale(arrow_head_width / 2);
-  const Vec head_vec_len    = norm.scale(arrow_head_length);
+  // const Vec head_half_width = orth * arrow_head_width / 2;
+  // const Vec head_vec_len    = norm * arrow_head_length;
 
-  const Point head_back  = head_end.sub(head_vec_len);
-  const Point head_left  = head_back.sub(head_half_width);
-  const Point head_right = head_back.add(head_half_width);
+  const Point head_back  = head_end - norm * arrow_head_length;
+  const Point head_left  = head_back - orth * arrow_head_width / 2;
+  const Point head_right = head_back + orth * arrow_head_width / 2;
 
   const sf::Vertex vertex_array[] = {
     sf::Vertex(sf::Vector2f( head_left.m_x,  head_left.m_y), sf::Color::Black),

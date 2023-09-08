@@ -10,7 +10,7 @@
 
 void CoordSystem::translate(const Vec& translation)
 {
-  m_origin = m_origin.add(translation);
+  m_origin += translation;
 }
 
 void CoordSystem::rotate(double angle)
@@ -23,10 +23,8 @@ void CoordSystem::rotate(double angle)
 
 Vec CoordSystem::getOrigVector(const Vec& vector) const
 {
-  const Vec scaled_x = m_unit_x.scale(vector.m_x);
-  const Vec scaled_y = m_unit_y.scale(vector.m_y);
-  
-  return scaled_x.add(scaled_y);
+  return m_unit_x * vector.m_x
+       + m_unit_y * vector.m_y;
 }
 
 Vec CoordSystem::fromOrigVector(const Vec& vector) const
