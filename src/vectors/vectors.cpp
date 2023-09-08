@@ -3,9 +3,10 @@
 #include <cassert>
 #include <cerrno>
 #include <cstdio>
+#include <cstring>
 #include <math.h>
 
-#include "vectors.h"
+#include "vectors/coord_system.h"
 
 #define EPS 1e-6
 
@@ -62,6 +63,25 @@ Vec VecProject(const Vec* project_on, const Vec* projected)
   return VecScale(project_on, dot_product / target_len);
 }
 
+Vec VecNormalize(const Vec* vector)
+{
+  const double length = VecLength(vector);
+
+  if (fabs(length) < EPS)
+  {
+    errno = EINVAL;
+    return VEC_EMPTY;
+  }
+
+  return VecScale(vector, 1.0/length);
+}
+
+Vec VecGetOrthogonal(const Vec* vector)
+{
+  return { .x = -vector->y,
+           .y =  vector->x };
+}
+
 double VecSignedArea(const Vec* first, const Vec* second)
 {
   return first->x * second->y
@@ -99,4 +119,12 @@ double VecAngle(const Vec* first, const Vec* second)
 void VecDump(const Vec* vector, int fd)
 {
   dprintf(fd, "Vec { x=%lg, y=%lg }\n", vector->x, vector->y);
+}
+
+void VecDraw(const Vec* vector, const CoordSystem* coord_system,
+             size_t width, sf::RenderTexture* render_target)
+{
+  assert(vector        != NULL);
+  assert(coord_system  != NULL);
+  assert(render_target != NULL);
 }

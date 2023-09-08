@@ -14,6 +14,11 @@
 
 #include <cmath>
 
+#include <SFML/Graphics/RenderTexture.hpp>
+
+// Forward declaration
+struct CoordSystem;
+
 struct Vec
 {
   double x, y;
@@ -97,6 +102,26 @@ Vec VecRotate(const Vec* vector, double angle);
 Vec VecProject(const Vec* project_on, const Vec* projected);
 
 /**
+ * @brief Get normalized version of given vector
+ *
+ * @param[in] vector	    Vector to be normalized
+ *
+ * @error EINVAL    `vector` is zero-length vector
+ *
+ * @return Vector of length 1 with the same direction as `vector`
+ */
+Vec VecNormalize(const Vec* vector);
+
+/**
+ * @brief Get vector orthogonal to given one
+ *
+ * @param[in] vector	    Input vector
+ *
+ * @return Vector, orthogonal to `vector` with the same length
+ */
+Vec VecGetOrthogonal(const Vec* vector);
+
+/**
  * @brief Get dot product of two vectors
  *
  * @param[in] first	    First operand
@@ -144,5 +169,16 @@ double VecAngle(const Vec* first, const Vec* second);
  * @param[in] fd	      Output file descriptor
  */
 void VecDump(const Vec* vector, int fd);
+
+/**
+ * @brief Draw vector on target texture using given coordinate system
+ *
+ * @param[in]    vector	        Vector to be drawn
+ * @param[in]    coord_system	  Target coordinate system
+ * @param[in]    width	        Width in pixels of drawn vector
+ * @param[inout] render_target	Target render texture
+ */
+void VecDraw(const Vec* vector, const CoordSystem* coord_system,
+             size_t width, sf::RenderTexture* render_target);
 
 #endif /* vectors.h */
