@@ -179,6 +179,6 @@ void VecDump(const Vec* vector, int fd);
  * @param[inout] render_target	Target render texture
  */
 void VecDraw(const Vec* vector, const CoordSystem* coord_system,
-             size_t width, sf::RenderTexture* render_target);
+             double width, sf::RenderTexture* render_target);
 
 #endif /* vectors.h */

@@ -1,5 +1,9 @@
 #include "vectors/vectors.h"
 
+#include <SFML/Graphics/Color.hpp>
+#include <SFML/Graphics/PrimitiveType.hpp>
+#include <SFML/Graphics/Vertex.hpp>
+#include <SFML/System/Vector2.hpp>
 #include <cassert>
 #include <cerrno>
 #include <cstdio>
@@ -122,9 +126,72 @@ void VecDump(const Vec* vector, int fd)
 }
 
 void VecDraw(const Vec* vector, const CoordSystem* coord_system,
-             size_t width, sf::RenderTexture* render_target)
+             double width, sf::RenderTexture* render_target)
 {
   assert(vector        != NULL);
   assert(coord_system  != NULL);
   assert(render_target != NULL);
+
+  const double arrow_head_length = 8*width;
+  const double arrow_head_width  = 4*width;
+  
+  // Transition to texture-relative coordinates
+  const Vec target_vector = CoordSystemGetOrigVector(coord_system, vector);
+  const double target_len = VecLength(&target_vector);
+
+  // If target vector has zero length
+  if (fabs(target_len) < EPS)
+  {
+    // Do not draw vector
+    return;
+  }
+
+  // Create target-vector-relative coordinate system
+  const Vec norm = VecNormalize(&target_vector);
+  const Vec orth = VecGetOrthogonal(&norm);
+
+  // Get line-head connection point
+  const Vec   head_margin = VecScale(&norm, arrow_head_length / 2);
+  const Point head_end    = VecAdd(&coord_system->origin, &target_vector);
+  const Point head_start  = VecSub(&head_end, &head_margin);
+  Point       line_start  = VEC_EMPTY;
+  memcpy(&line_start, &coord_system->origin, sizeof(Point));
+
+  // If target vector is longer than half of arrow-head
+  if (target_len > arrow_head_length / 2)
+  {
+    // Draw arrow line
+    const Vec line_half_width = VecScale(&orth, width / 2);
+
+    const Point tail_left  = VecSub(&line_start, &line_half_width);
+    const Point tail_right = VecAdd(&line_start, &line_half_width);
+    const Point head_left  = VecSub(&head_start, &line_half_width);
+    const Point head_right = VecAdd(&head_start, &line_half_width);
+
+    const sf::Vertex vertex_array[] = {
+      sf::Vertex(sf::Vector2f( tail_left.x,  tail_left.y), sf::Color::Black),
+      sf::Vertex(sf::Vector2f(tail_right.x, tail_right.y), sf::Color::Black),
+      sf::Vertex(sf::Vector2f(head_right.x, head_right.y), sf::Color::Black),
+      sf::Vertex(sf::Vector2f( head_left.x,  head_left.y), sf::Color::Black)
+    };
+
+    render_target->draw(vertex_array, 4, sf::TriangleStrip);
+  }
+
+  // Draw arrow head
+  const Vec head_half_width = VecScale(&orth, arrow_head_width / 2);
+  const Vec head_vec_len    = VecScale(&norm, arrow_head_length);
+
+  const Point head_back  = VecSub(&head_end, &head_vec_len);
+  const Point head_left  = VecSub(&head_back, &head_half_width);
+  const Point head_right = VecAdd(&head_back, &head_half_width);
+  
+  const sf::Vertex vertex_array[] = {
+    sf::Vertex(sf::Vector2f( head_left.x,  head_left.y), sf::Color::Black),
+    sf::Vertex(sf::Vector2f(  head_end.x,   head_end.y), sf::Color::Black),
+    sf::Vertex(sf::Vector2f(head_start.x, head_start.y), sf::Color::Black),
+    sf::Vertex(sf::Vector2f(head_right.x, head_right.y), sf::Color::Black),
+  };
+
+  render_target->draw(vertex_array, 4, sf::TriangleStrip);
 }
