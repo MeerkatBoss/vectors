@@ -14,99 +14,84 @@
 
 #define EPS 1e-6
 
-void VecCtor(Vec* vector, double x, double y)
+Vec Vec::add(const Vec& other) const
 {
-  vector->x = x;
-  vector->y = y;
+  return Vec(m_x + other.m_x,
+             m_y + other.m_y);
 }
 
-void VecDtor(Vec* vector)
+Vec Vec::sub(const Vec& other) const
 {
-  vector->x = NAN;
-  vector->y = NAN;
+  return Vec(m_x - other.m_x,
+             m_y - other.m_y);
 }
 
-Vec VecAdd(const Vec* first, const Vec* second)
+Vec Vec::scale(double scale) const
 {
-  return {first->x + second->x,
-          first->y + second->y};
+  return Vec(scale * m_x,
+             scale * m_y);
 }
 
-Vec VecSub(const Vec* first, const Vec* second)
-{
-  return {first->x - second->x,
-          first->y - second->y};
-}
-
-Vec VecScale(const Vec* vector, double scale)
-{
-  return {scale * vector->x,
-          scale * vector->y};
-}
-
-Vec VecRotate(const Vec* vector, double angle)
+Vec Vec::rotate(double angle) const
 {
   const double sine   = sin(angle);
   const double cosine = cos(angle);
 
-  return {cosine * vector->x - sine   * vector->y,
-          sine   * vector->x + cosine * vector->y};
+  return Vec(cosine * m_x - sine   * m_y,
+             sine   * m_x + cosine * m_y);
 }
 
-Vec VecProject(const Vec* project_on, const Vec* projected)
+Vec Vec::project_on(const Vec& other) const
 {
-  const double dot_product = VecDotProduct(project_on, projected);
-  const double target_len  = VecLength(project_on);
+  const double dot_product = Vec::dotProduct(other, *this);
+  const double other_len   = other.length();
 
-  if (fabs(target_len) < EPS)
+  if (fabs(other_len) < EPS)
   {
     errno = EINVAL;
-    return VEC_EMPTY;
+    return Vec(NAN, NAN);
   }
 
-  return VecScale(project_on, dot_product / target_len);
+  return other.scale(dot_product / other_len);
 }
 
-Vec VecNormalize(const Vec* vector)
+Vec Vec::getNormalized() const
 {
-  const double length = VecLength(vector);
-
-  if (fabs(length) < EPS)
+  if (fabs(length()) < EPS)
   {
     errno = EINVAL;
-    return VEC_EMPTY;
+    return Vec(NAN, NAN);
   }
 
-  return VecScale(vector, 1.0/length);
+  return scale(1.0/length());
 }
 
-Vec VecGetOrthogonal(const Vec* vector)
+Vec Vec::getOrthogonal() const
 {
-  return { .x = -vector->y,
-           .y =  vector->x };
+  return Vec(-m_y, m_x);
 }
 
-double VecSignedArea(const Vec* first, const Vec* second)
+double Vec::dotProduct(const Vec& first, const Vec& second)
 {
-  return first->x * second->y
-       - first->y * second->x;
+  return first.m_x * second.m_x
+       + first.m_y * second.m_y;
 }
 
-double VecDotProduct(const Vec* first, const Vec* second)
+double Vec::crossProduct(const Vec& first, const Vec& second)
 {
-  return first->x * second->x
-       + first->y * second->y;
+  return first.m_x * second.m_y
+       - first.m_y * second.m_x;
 }
 
-double VecLength(const Vec* vector)
+double Vec::length() const
 {
-  return hypot(vector->x, vector->y);
+  return hypot(m_x, m_y);
 }
 
-double VecAngle(const Vec* first, const Vec* second)
+double Vec::angle_with(const Vec& other) const
 {
-  const double first_len  = VecLength(first);
-  const double second_len = VecLength(second);
+  const double first_len  = length();
+  const double second_len = other.length();
 
   if (fabs(first_len * second_len) < EPS)
   {
@@ -114,30 +99,26 @@ double VecAngle(const Vec* first, const Vec* second)
     return NAN;
   }
 
-  const double cosine = VecDotProduct(first, second) / (first_len * second_len);
+  const double cosine = Vec::dotProduct(*this, other) / (first_len*second_len);
   assert(fabs(cosine) < 1);
 
   return acos(cosine);
 }
 
-void VecDump(const Vec* vector, int fd)
+void Vec::dump(int fd) const
 {
-  dprintf(fd, "Vec { x=%lg, y=%lg }\n", vector->x, vector->y);
+  dprintf(fd, "Vec { x=%lg, y=%lg }\n", m_x, m_y);
 }
 
-void VecDraw(const Vec* vector, const CoordSystem* coord_system,
-             double width, sf::RenderTexture* render_target)
+void Vec::draw(const CoordSystem& coord_system, double width,
+          sf::RenderTexture& render_target) const
 {
-  assert(vector        != NULL);
-  assert(coord_system  != NULL);
-  assert(render_target != NULL);
-
   const double arrow_head_length = 8*width;
   const double arrow_head_width  = 4*width;
-  
+
   // Transition to texture-relative coordinates
-  const Vec target_vector = CoordSystemGetOrigVector(coord_system, vector);
-  const double target_len = VecLength(&target_vector);
+  const Vec target_vector = coord_system.getOrigVector(*this);
+  const double target_len = target_vector.length();
 
   // If target vector has zero length
   if (fabs(target_len) < EPS)
@@ -147,51 +128,50 @@ void VecDraw(const Vec* vector, const CoordSystem* coord_system,
   }
 
   // Create target-vector-relative coordinate system
-  const Vec norm = VecNormalize(&target_vector);
-  const Vec orth = VecGetOrthogonal(&norm);
+  const Vec norm = target_vector.getNormalized();
+  const Vec orth = norm.getOrthogonal();
 
-  // Get line-head connection point
-  const Vec   head_margin = VecScale(&norm, arrow_head_length / 2);
-  const Point head_end    = VecAdd(&coord_system->origin, &target_vector);
-  const Point head_start  = VecSub(&head_end, &head_margin);
-  Point       line_start  = VEC_EMPTY;
-  memcpy(&line_start, &coord_system->origin, sizeof(Point));
+  // Get base points
+  const Vec   head_margin = norm.scale(arrow_head_length / 2);
+  const Point head_end    = coord_system.getOrigin().add(target_vector);
+  const Point head_start  = head_end.sub(head_margin);
+  Point       line_start  = coord_system.getOrigin();
 
   // If target vector is longer than half of arrow-head
   if (target_len > arrow_head_length / 2)
   {
     // Draw arrow line
-    const Vec line_half_width = VecScale(&orth, width / 2);
+    const Vec line_half_width = orth.scale(width / 2);
 
-    const Point tail_left  = VecSub(&line_start, &line_half_width);
-    const Point tail_right = VecAdd(&line_start, &line_half_width);
-    const Point head_left  = VecSub(&head_start, &line_half_width);
-    const Point head_right = VecAdd(&head_start, &line_half_width);
+    const Point tail_left  = line_start.sub(line_half_width);
+    const Point tail_right = line_start.add(line_half_width);
+    const Point head_left  = head_start.sub(line_half_width);
+    const Point head_right = head_start.add(line_half_width);
 
     const sf::Vertex vertex_array[] = {
-      sf::Vertex(sf::Vector2f( tail_left.x,  tail_left.y), sf::Color::Black),
-      sf::Vertex(sf::Vector2f(tail_right.x, tail_right.y), sf::Color::Black),
-      sf::Vertex(sf::Vector2f(head_right.x, head_right.y), sf::Color::Black),
-      sf::Vertex(sf::Vector2f( head_left.x,  head_left.y), sf::Color::Black)
+      sf::Vertex(sf::Vector2f( tail_left.m_x,  tail_left.m_y), sf::Color::Black),
+      sf::Vertex(sf::Vector2f(tail_right.m_x, tail_right.m_y), sf::Color::Black),
+      sf::Vertex(sf::Vector2f(head_right.m_x, head_right.m_y), sf::Color::Black),
+      sf::Vertex(sf::Vector2f( head_left.m_x,  head_left.m_y), sf::Color::Black)
     };
 
-    render_target->draw(vertex_array, 4, sf::TriangleStrip);
+    render_target.draw(vertex_array, 4, sf::TriangleStrip);
   }
 
   // Draw arrow head
-  const Vec head_half_width = VecScale(&orth, arrow_head_width / 2);
-  const Vec head_vec_len    = VecScale(&norm, arrow_head_length);
+  const Vec head_half_width = orth.scale(arrow_head_width / 2);
+  const Vec head_vec_len    = norm.scale(arrow_head_length);
 
-  const Point head_back  = VecSub(&head_end, &head_vec_len);
-  const Point head_left  = VecSub(&head_back, &head_half_width);
-  const Point head_right = VecAdd(&head_back, &head_half_width);
-  
+  const Point head_back  = head_end.sub(head_vec_len);
+  const Point head_left  = head_back.sub(head_half_width);
+  const Point head_right = head_back.add(head_half_width);
+
   const sf::Vertex vertex_array[] = {
-    sf::Vertex(sf::Vector2f( head_left.x,  head_left.y), sf::Color::Black),
-    sf::Vertex(sf::Vector2f(  head_end.x,   head_end.y), sf::Color::Black),
-    sf::Vertex(sf::Vector2f(head_start.x, head_start.y), sf::Color::Black),
-    sf::Vertex(sf::Vector2f(head_right.x, head_right.y), sf::Color::Black),
+    sf::Vertex(sf::Vector2f( head_left.m_x,  head_left.m_y), sf::Color::Black),
+    sf::Vertex(sf::Vector2f(  head_end.m_x,   head_end.m_y), sf::Color::Black),
+    sf::Vertex(sf::Vector2f(head_start.m_x, head_start.m_y), sf::Color::Black),
+    sf::Vertex(sf::Vector2f(head_right.m_x, head_right.m_y), sf::Color::Black),
   };
 
-  render_target->draw(vertex_array, 4, sf::TriangleStrip);
+  render_target.draw(vertex_array, 4, sf::TriangleStrip);
 }

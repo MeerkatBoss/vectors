@@ -8,68 +8,28 @@
 
 #define EPS 1e-6
 
-void CoordSystemCtor(CoordSystem* coord_system, const Point* origin,
-                     const Vec* unit_x, const Vec* unit_y)
+void CoordSystem::translate(const Vec& translation)
 {
-  assert(coord_system != NULL);
-  const double cross_product = VecSignedArea(unit_x, unit_y);
-
-  if (fabs(cross_product) < EPS)
-  {
-    errno = EINVAL;
-    return;
-  }
-
-  memcpy(&coord_system->origin, origin, sizeof(Point));
-  memcpy(&coord_system->unit_x, unit_x, sizeof(Vec));
-  memcpy(&coord_system->unit_y, unit_y, sizeof(Vec));
+  m_origin = m_origin.add(translation);
 }
 
-void CoordSystemDtor(CoordSystem* coord_system)
+void CoordSystem::rotate(double angle)
 {
-  assert(coord_system != NULL);
-  Vec empty = VEC_EMPTY;
-
-  memcpy(&coord_system->origin, &empty, sizeof(Point));
-  memcpy(&coord_system->unit_x, &empty, sizeof(Vec));
-  memcpy(&coord_system->unit_y, &empty, sizeof(Vec));
-}
-
-void CoordSystemTranslate(CoordSystem* coord_system, const Vec* translation)
-{
-  assert(coord_system != NULL);
-  assert(translation  != NULL);
-
-  Point new_origin  = VecAdd(&coord_system->origin, translation);
-  memcpy(&coord_system->origin, &new_origin, sizeof(Point));
-}
-
-void CoordSystemRotate(CoordSystem* coord_system, double angle)
-{
-  assert(coord_system != NULL);
   assert(isfinite(angle));
 
-  Vec new_unit_x = VecRotate(&coord_system->unit_x, angle);
-  Vec new_unit_y = VecRotate(&coord_system->unit_y, angle);
-
-  memcpy(&coord_system->unit_x, &new_unit_x, sizeof(Vec));
-  memcpy(&coord_system->unit_y, &new_unit_y, sizeof(Vec));
+  m_unit_x = m_unit_x.rotate(angle);
+  m_unit_y = m_unit_y.rotate(angle);
 }
 
-Vec CoordSystemGetOrigVector(const CoordSystem* coord_system,
-                             const Vec*         vector)
+Vec CoordSystem::getOrigVector(const Vec& vector) const
 {
-  assert(coord_system != NULL);
-  assert(vector       != NULL);
-
-  Vec scaled_x = VecScale(&coord_system->unit_x, vector->x);
-  Vec scaled_y = VecScale(&coord_system->unit_y, vector->y);
+  const Vec scaled_x = m_unit_x.scale(vector.m_x);
+  const Vec scaled_y = m_unit_y.scale(vector.m_y);
   
-  return VecAdd(&scaled_x, &scaled_y);
+  return scaled_x.add(scaled_y);
 }
 
-Vec CoordSystemFromOrigVector(const CoordSystem* coord_system,
-                              const Vec*         vector)
+Vec CoordSystem::fromOrigVector(const Vec& vector) const
 {
   // Use Cramer's rule to solve system of two linear equations
   // / a_00 a_01 \   / b_0 \
@@ -77,13 +37,13 @@ Vec CoordSystemFromOrigVector(const CoordSystem* coord_system,
   
   const double matrix[2][2] =
     {
-      { coord_system->unit_x.x, coord_system->unit_y.x},
-      { coord_system->unit_x.y, coord_system->unit_y.y}
+      { m_unit_x.m_x, m_unit_y.m_x},
+      { m_unit_x.m_y, m_unit_y.m_y}
     };
   const double result[2] =
     {
-      vector->x,
-      vector->y
+      vector.m_x,
+      vector.m_y
     };
 
   const double delta   = matrix[0][0] * matrix[1][1]
@@ -97,7 +57,7 @@ Vec CoordSystemFromOrigVector(const CoordSystem* coord_system,
 
   assert(fabs(delta) > EPS && "Invalid coordinate system");
   
-  return { .x = delta_x / delta,
-           .y = delta_y / delta };
+  return Vec(delta_x / delta,
+             delta_y / delta);
 }
 
