@@ -29,7 +29,7 @@ public:
 
   Vec(sf::Vector2f sf_vector) : m_x(sf_vector.x), m_y(sf_vector.y) {}
   operator sf::Vector2f() const { return sf::Vector2f(m_x, m_y); }
-  
+
   Vec& operator=(const Vec& other)
   {
     m_x = other.m_x;
@@ -83,7 +83,7 @@ public:
     *this = *this - other;
     return *this;
   }
-  
+
   /**
    * @brief Scale vector by given factor
    *
@@ -221,6 +221,8 @@ public:
    * @return Vector length
    */
   double length() const;
+
+  bool operator!() const;
 
   /**
    * @brief Get angle (in radians) between this vector and another one

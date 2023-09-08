@@ -70,7 +70,7 @@ Vec Vec::rotate(double angle) const
 
 Vec Vec::project_on(const Vec& other) const
 {
-  const double dot_product = Vec::dotProduct(other, *this);
+  const double dot_product = (other, *this);
   const double other_len   = other.length();
 
   if (fabs(other_len) < EPS)
@@ -125,6 +125,11 @@ double Vec::length() const
   return hypot(m_x, m_y);
 }
 
+bool Vec::operator!() const
+{
+  return fabs(length()) < EPS;
+}
+
 double Vec::angle_with(const Vec& other) const
 {
   const double first_len  = length();
@@ -159,19 +164,19 @@ void Vec::draw(const CoordSystem& coord_system, double width,
   const double arrow_head_width  = 4*width;
 
   // Transition to texture-relative coordinates
-  const Vec target_vector = coord_system.getOrigVector(*this);
+  const Vec target_vector = *this << coord_system;
   const double target_len = target_vector.length();
 
   // If target vector has zero length
-  if (fabs(target_len) < EPS)
+  if (!target_vector)
   {
     // Do not draw vector
     return;
   }
 
   // Create target-vector-relative coordinate system
-  const Vec norm = target_vector.getNormalized();
-  const Vec orth = norm.getOrthogonal();
+  const Vec norm = &target_vector;
+  const Vec orth = ~norm;
 
   // Get base points
   // const Vec   head_margin = norm * arrow_head_length / 2;
@@ -192,28 +197,26 @@ void Vec::draw(const CoordSystem& coord_system, double width,
     const Point head_right = head_start + orth * width / 2;
 
     const sf::Vertex vertex_array[] = {
-      sf::Vertex(sf::Vector2f( tail_left.m_x,  tail_left.m_y), sf::Color::Black),
-      sf::Vertex(sf::Vector2f(tail_right.m_x, tail_right.m_y), sf::Color::Black),
-      sf::Vertex(sf::Vector2f(head_right.m_x, head_right.m_y), sf::Color::Black),
-      sf::Vertex(sf::Vector2f( head_left.m_x,  head_left.m_y), sf::Color::Black)
+      sf::Vertex(tail_left,  sf::Color::Black),
+      sf::Vertex(tail_right, sf::Color::Black),
+      sf::Vertex(head_right, sf::Color::Black),
+      sf::Vertex(head_left,  sf::Color::Black)
     };
 
     render_target.draw(vertex_array, 4, sf::TriangleStrip);
   }
 
   // Draw arrow head
-  // const Vec head_half_width = orth * arrow_head_width / 2;
-  // const Vec head_vec_len    = norm * arrow_head_length;
 
   const Point head_back  = head_end - norm * arrow_head_length;
   const Point head_left  = head_back - orth * arrow_head_width / 2;
   const Point head_right = head_back + orth * arrow_head_width / 2;
 
   const sf::Vertex vertex_array[] = {
-    sf::Vertex(sf::Vector2f( head_left.m_x,  head_left.m_y), sf::Color::Black),
-    sf::Vertex(sf::Vector2f(  head_end.m_x,   head_end.m_y), sf::Color::Black),
-    sf::Vertex(sf::Vector2f(head_start.m_x, head_start.m_y), sf::Color::Black),
-    sf::Vertex(sf::Vector2f(head_right.m_x, head_right.m_y), sf::Color::Black),
+    sf::Vertex(head_left,  sf::Color::Black),
+    sf::Vertex(head_end,   sf::Color::Black),
+    sf::Vertex(head_start, sf::Color::Black),
+    sf::Vertex(head_right, sf::Color::Black),
   };
 
   render_target.draw(vertex_array, 4, sf::TriangleStrip);
