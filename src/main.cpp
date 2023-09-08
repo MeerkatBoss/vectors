@@ -12,55 +12,44 @@
 
 int main()
 {
-  Vec    a = VEC_EMPTY, b = VEC_EMPTY;
+  Vec    a(1, 2), b(4, 5);
   double scale = 1.33;
-  VecCtor(&a, 1, 2);
-  VecCtor(&b, 4, 5);
-
-  Vec    sum    = VecAdd(&a, &b);
-  Vec    diff   = VecSub(&a, &b);
-  Vec    scaled = VecScale(&a, scale);
-  double angle  = VecAngle(&a, &b);
 
   dprintf(STDOUT_FILENO, "a = ");
-  VecDump(&a, STDOUT_FILENO);
+  a.dump(STDOUT_FILENO);
   dprintf(STDOUT_FILENO, "b = ");
-  VecDump(&b, STDOUT_FILENO);
+  b.dump(STDOUT_FILENO);
   dprintf(STDOUT_FILENO, "a + b = ");
-  VecDump(&sum, STDOUT_FILENO);
+  a.add(b).dump(STDOUT_FILENO);
   dprintf(STDOUT_FILENO, "a - b = ");
-  VecDump(&diff, STDOUT_FILENO);
+  a.sub(b).dump(STDOUT_FILENO);
   dprintf(STDOUT_FILENO, "%lg * a = ", scale);
-  VecDump(&scaled, STDOUT_FILENO);
-  dprintf(STDOUT_FILENO, "a^b = %lg\n", angle);
+  a.scale(scale).dump(STDOUT_FILENO);
+  dprintf(STDOUT_FILENO, "a^b = %lg\n", a.angle_with(b));
 
-  sf::RenderWindow window(sf::VideoMode(720, 480), "Draw window");
   sf::RenderTexture render_texture;
   render_texture.create(720, 480);
   render_texture.setSmooth(true);
 
-  Point origin = VEC_EMPTY;
-  Vec unit_x = VEC_EMPTY, unit_y = VEC_EMPTY;
-  VecCtor(&origin, 100, 100);
-  VecCtor(&unit_x, 50, 10);
-  VecCtor(&unit_y, 10, 50);
-  CoordSystem coord_system = COORD_SYSTEM_EMPTY;
-  CoordSystemCtor(&coord_system, &origin, &unit_x, &unit_y);
+  CoordSystem coord_system(
+      Point(100, 100),
+      Vec(50, 10),
+      Vec(10, 50)
+  );
 
-  Vec drawn1 = VEC_EMPTY, drawn2 = VEC_EMPTY;
-  VecCtor(&drawn1, 2, 5);
-  VecCtor(&drawn2, 9, 2);
 
-  Vec x_axis = VEC_EMPTY, y_axis = VEC_EMPTY;
-  VecCtor(&x_axis, 1, 0);
-  VecCtor(&y_axis, 0, 1);
+  Vec drawn1(2, 5), drawn2(9, 2);
 
-  VecDraw(&drawn1, &coord_system, 3, &render_texture);
-  VecDraw(&drawn2, &coord_system, 3, &render_texture);
-  VecDraw(&x_axis, &coord_system, 3, &render_texture);
-  VecDraw(&y_axis, &coord_system, 3, &render_texture);
+  // Draw vectors
+  drawn1.draw(coord_system, 3, render_texture);
+  drawn2.draw(coord_system, 3, render_texture);
+
+  // Draw axis
+  Vec(1, 0).draw(coord_system, 3, render_texture);
+  Vec(0, 1).draw(coord_system, 3, render_texture);
   sf::Sprite sprite(render_texture.getTexture());
 
+  sf::RenderWindow window(sf::VideoMode(720, 480), "Draw window");
   while (window.isOpen())
   {
     sf::Event event;
@@ -75,18 +64,4 @@ int main()
     window.draw(sprite);
     window.display();
   }
-
-  VecDtor(&a);
-  VecDtor(&b);
-  VecDtor(&sum);
-  VecDtor(&diff);
-  VecDtor(&scaled);
-  VecDtor(&origin);
-  VecDtor(&unit_x);
-  VecDtor(&unit_y);
-  VecDtor(&drawn1);
-  VecDtor(&drawn2);
-  VecDtor(&x_axis);
-  VecDtor(&y_axis);
-  CoordSystemDtor(&coord_system);
 }
